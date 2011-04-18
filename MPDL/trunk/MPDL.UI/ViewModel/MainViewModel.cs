@@ -41,6 +41,13 @@ namespace MPDL.UI.ViewModel {
         /// </summary>
         public MainViewModel() {
             svc = new MPDLService();
+            svc.SetErrorMessageCallback((e) => {
+                IsBusy = false;
+                MessageBox.Show(e.Message, "Application Error",
+                                System.Windows.MessageBoxButton.OK,
+                                System.Windows.MessageBoxImage.Error);
+
+            });
             svc.SetBusymessageCallback((msg) => {
                 BusyMessage = msg;
             });
@@ -156,9 +163,7 @@ namespace MPDL.UI.ViewModel {
                 foreach (var item in Thumbs) {
                     item.IsSelected = false;
                 }
-            }, () => {
-                return Thumbs.Count > 0;
-            });
+            }, () => Thumbs.Count > 0);
 
             //
             ToggleConfigWindowCommand = new RelayCommand(() => {
@@ -195,15 +200,9 @@ namespace MPDL.UI.ViewModel {
                     IsBusy = false;
                 }, SelectedGroup.GroupId);
             }
-            , () => {
-                return SelectedGroup != null;
-            });
+            , () => SelectedGroup != null);
             //
-            DownloadThumbsCommand = new RelayCommand(() => {
-                DownloadThumbnails(true);
-            }, () => {
-                return SelectedAlbum != null;
-            });
+            DownloadThumbsCommand = new RelayCommand(() => DownloadThumbnails(true), () => SelectedAlbum != null);
 
         }
 

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using MPDL.Domain.Model;
 using System.Net;
 using System.Xml;
@@ -9,7 +8,6 @@ using System.IO;
 using System.Xml.Serialization;
 using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Imaging;
 
 namespace MPDL.Domain.Service {
     public interface IMPDLService {
@@ -39,6 +37,8 @@ namespace MPDL.Domain.Service {
 
         void SetBusymessageCallback(Action<string> callback);
 
+        void SetErrorMessageCallback(Action<Exception> callback);
+
         void SetConfig(MPDLConfig config);
 
         #endregion Operations
@@ -55,17 +55,21 @@ namespace MPDL.Domain.Service {
         private readonly string groupsPath;
         private readonly string highresDownloadPath;
         private bool isConfigSet;
+        private Action<Exception> errorMessageCallback;
 
         #endregion Fields
 
         #region Constructors (1)
 
         public MPDLService() {
-            if (!Directory.Exists(Constants.CacheFolder))
+            if (!Directory.Exists(Constants.CacheFolder)) {
                 Directory.CreateDirectory(Constants.CacheFolder);
+            }
             groupsPath = Path.Combine(Constants.CacheFolder, Constants.GroupsFileName);
             highresDownloadPath = Path.Combine(Constants.CacheFolder, "highres");
-            if (!Directory.Exists(highresDownloadPath)) Directory.CreateDirectory(highresDownloadPath);
+            if (!Directory.Exists(highresDownloadPath)) {
+                Directory.CreateDirectory(highresDownloadPath);
+            }
 
 
             isConfigSet = false;
@@ -107,11 +111,7 @@ namespace MPDL.Domain.Service {
 
         public void DownloadHighResAsync(IEnumerable<MeetupPhoto> selected, Action<IEnumerable<MeetupPhoto>> onComplete) {
             IEnumerable<MeetupPhoto> result = null;
-            DoWork(() => {
-                DownloadHighRes(selected);
-            }, () => {
-                onComplete(result);
-            });
+            DoWork(() => DownloadHighRes(selected), () => onComplete(result));
         }
 
         public IEnumerable<MeetupAlbum> GetAlbums(bool forceDownload, int groupId) {
@@ -124,8 +124,8 @@ namespace MPDL.Domain.Service {
                 Path.Combine(
                     Constants.CacheFolder,
                     string.Format("albums-{0}.xml", groupId)
-                )
-            );
+                    )
+                );
             var albumItems = doc.SelectNodes(@"//items/item");
             foreach (XmlNode item in albumItems) {
                 result.Add(new MeetupAlbum {
@@ -140,11 +140,8 @@ namespace MPDL.Domain.Service {
 
         public void GetAlbumsAsync(bool forceDownload, Action<IEnumerable<MeetupAlbum>> onComplete, int groupId) {
             IEnumerable<MeetupAlbum> result = null;
-            DoWork(() => {
-                result = new List<MeetupAlbum>(GetAlbums(forceDownload, groupId));
-            }, () => {
-                onComplete(result);
-            });
+            DoWork(() => { result = new List<MeetupAlbum>(GetAlbums(forceDownload, groupId)); },
+                   () => onComplete(result));
         }
 
         public IEnumerable<MeetupGroup> GetAllGroups(bool forceDownload) {
@@ -166,11 +163,7 @@ namespace MPDL.Domain.Service {
 
         public void GetAllGroupsAsync(bool forceDownload, Action<IEnumerable<MeetupGroup>> onComplete) {
             IEnumerable<MeetupGroup> result = null;
-            DoWork(() => {
-                result = new List<MeetupGroup>(GetAllGroups(forceDownload));
-            }, () => {
-                onComplete(result);
-            });
+            DoWork(() => { result = new List<MeetupGroup>(GetAllGroups(forceDownload)); }, () => onComplete(result));
         }
 
         public MPDLConfig GetConfig() {
@@ -181,12 +174,14 @@ namespace MPDL.Domain.Service {
             // look for cached folder for album id
             // cache/thumbs-{albumId}
             var cachePath = Path.Combine(Constants.CacheFolder,
-                string.Format("thumbs-{0}", albumId));
+                                         string.Format("thumbs-{0}", albumId));
 
             var photos = GetPhotoUrls(forceDownload, albumId);
 
             if (!Directory.Exists(cachePath) || forceDownload) {
-                if (!Directory.Exists(cachePath)) Directory.CreateDirectory(cachePath);
+                if (!Directory.Exists(cachePath)) {
+                    Directory.CreateDirectory(cachePath);
+                }
                 var itemCount = 0;
                 var totalCount = photos.Count();
                 foreach (var item in photos) {
@@ -200,11 +195,8 @@ namespace MPDL.Domain.Service {
 
         public void GetThumbnailsAsync(bool forceDownload, Action<IEnumerable<MeetupPhoto>> onComplete, int albumId) {
             IEnumerable<MeetupPhoto> result = null;
-            DoWork(() => {
-                result = new List<MeetupPhoto>(GetThumbnails(forceDownload, albumId));
-            }, () => {
-                onComplete(result);
-            });
+            DoWork(() => { result = new List<MeetupPhoto>(GetThumbnails(forceDownload, albumId)); },
+                   () => onComplete(result));
         }
 
         public bool HasGroupsCached() {
@@ -215,7 +207,17 @@ namespace MPDL.Domain.Service {
             busyMessageCallback = callback;
         }
 
+        public void SetErrorMessageCallback(Action<Exception> callback) {
+            errorMessageCallback = callback;
+        }
+
         public void SetConfig(MPDLConfig config) {
+            if (config == null
+                || string.IsNullOrEmpty(config.ApiKey) || string.IsNullOrEmpty(config.MemberId)
+                ) {
+                return;
+            }
+
             this.config = config;
             config.ApiKey = config.ApiKey.Trim();
             config.MemberId = config.MemberId.Trim();
@@ -226,6 +228,7 @@ namespace MPDL.Domain.Service {
 
             isConfigSet = true;
         }
+
         // Private Methods (6) 
 
         private void BusyMessage(string format, params object[] args) {
@@ -234,19 +237,28 @@ namespace MPDL.Domain.Service {
             }
         }
 
-        private void CheckConfig() {
-            if (!isConfigSet) throw new InvalidOperationException("Configuration must be set first.");
+        private void ErrorMessage(Exception ex) {
+            if (errorMessageCallback != null) {
+                errorMessageCallback(ex);
+            }
         }
 
-        private string DownloadImage(string url, string outputFolder) {
+        private void CheckConfig() {
+            if (!isConfigSet) {
+                throw new InvalidOperationException("Configuration must be set first.");
+            }
+        }
+
+        private static string DownloadImage(string url, string outputFolder) {
             var client = new WebClient();
-            Bitmap bitmap;
             var stream = client.OpenRead(url);
-            bitmap = new Bitmap(stream);
+            var bitmap = new Bitmap(stream);
             stream.Flush();
 
             var outputPath = Path.Combine(outputFolder, Path.GetFileName(url));
-            if (File.Exists(outputPath)) File.Delete(outputPath);
+            if (File.Exists(outputPath)) {
+                File.Delete(outputPath);
+            }
 
             bitmap.Save(outputPath);
 
@@ -257,7 +269,11 @@ namespace MPDL.Domain.Service {
             var worker = new BackgroundWorker();
             worker.DoWork += (e, p) => start();
             worker.RunWorkerCompleted += (e, p) => {
-                complete();
+                if (p.Error == null) {
+                    complete();
+                } else {
+                    ErrorMessage(p.Error);
+                }
             };
             worker.RunWorkerAsync();
         }
@@ -270,7 +286,7 @@ namespace MPDL.Domain.Service {
                 forceDownload,
                 url,
                 Path.Combine(Constants.CacheFolder,
-                string.Format("photos-{0}.xml", albumId))
+                             string.Format("photos-{0}.xml", albumId))
                 );
             var albumItems = doc.SelectNodes(@"//items/item");
             foreach (XmlNode item in albumItems) {
@@ -298,9 +314,6 @@ namespace MPDL.Domain.Service {
         }
 
         #endregion Methods
-
-
-
 
         public string GetHighResDownloadFolder() {
             return highresDownloadPath;
