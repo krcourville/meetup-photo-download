@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using MPDL.Domain.Model;
 using System.Net;
@@ -8,6 +9,8 @@ using System.IO;
 using System.Xml.Serialization;
 using System.ComponentModel;
 using System.Drawing;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace MPDL.Domain.Service {
     public interface IMPDLService {
@@ -39,7 +42,7 @@ namespace MPDL.Domain.Service {
 
         void SetErrorMessageCallback(Action<Exception> callback);
 
-        void SetConfig(MPDLConfig config);
+        void SetConfig(MPDLConfig mpdlConfig);
 
         #endregion Operations
 
@@ -211,19 +214,33 @@ namespace MPDL.Domain.Service {
             errorMessageCallback = callback;
         }
 
-        public void SetConfig(MPDLConfig config) {
-            if (config == null
-                || string.IsNullOrEmpty(config.ApiKey) || string.IsNullOrEmpty(config.MemberId)
-                ) {
+        public void SetConfig(MPDLConfig mpdlConfig) {
+            if (mpdlConfig == null || string.IsNullOrEmpty(mpdlConfig.ApiKey)) {
                 return;
             }
 
-            this.config = config;
-            config.ApiKey = config.ApiKey.Trim();
-            config.MemberId = config.MemberId.Trim();
+            config = mpdlConfig;
+            mpdlConfig.ApiKey = mpdlConfig.ApiKey.Trim();
+            //
+            // Get MemberId via API call
+            BusyMessage("Accessing {0}", "Meetup.com profile");
+            var url = string.Format(Constants.MemberQueryTemplate, mpdlConfig.ApiKey);
+            var webclient = new WebClient();
+            try {
+                var stream = webclient.OpenRead(url);
+                var reader = new StreamReader(stream);
+                var jObject = JObject.Parse(reader.ReadToEnd());
+                config.MemberId = (string)jObject.SelectToken("results[0].id");
+                Debug.WriteLine(config.MemberId, "MemberId");
+                stream.Close();
+                if (string.IsNullOrEmpty(config.MemberId)) throw new Exception("Unable to location Member Id");
+            } catch (Exception ex) {
+                ErrorMessage(ex);
+            }
+
             using (var file = File.OpenWrite(Constants.ConfigFileName)) {
                 var serializer = new XmlSerializer(typeof(MPDLConfig));
-                serializer.Serialize(file, config);
+                serializer.Serialize(file, mpdlConfig);
             }
 
             isConfigSet = true;
@@ -301,11 +318,13 @@ namespace MPDL.Domain.Service {
 
         private XmlDocument GetXml(bool forceDownload, string url, string fileName) {
             var doc = new XmlDocument();
-            if (!File.Exists(fileName) || forceDownload) {
+            if (fileName == null || !File.Exists(fileName) || forceDownload) {
                 BusyMessage("Accessing {0}", "Meetup.com");
                 // TODO: Check for error, suggest configuration re-entry
                 doc.Load(url);
-                doc.Save(fileName);
+                if (fileName != null) {
+                    doc.Save(fileName);
+                }
             } else {
                 BusyMessage("Accessing {0}", "file system");
                 doc.Load(fileName);

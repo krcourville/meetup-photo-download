@@ -10,6 +10,6 @@ namespace MPDL.Domain.Model {
         [Required]
         public string ApiKey { get; set; }
         [Required]
-        public string MemberId { get; set; }
+        internal string MemberId { get; set; }
     }
 }

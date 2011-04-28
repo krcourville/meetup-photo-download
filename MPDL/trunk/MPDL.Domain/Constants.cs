@@ -8,6 +8,7 @@ namespace MPDL.Domain {
         public const string GroupQueryTemplate = @"https://api.meetup.com/groups.xml/?key={0}&member_id={1}";
         public const string AlbumQueryTemplate = @"https://api.meetup.com/2/photo_albums?key={0}&sign=true&group_id={1}&format=xml";
         public const string PhotoQueryTemplate = @"https://api.meetup.com/2/photos?key={0}&sign=true&photo_album_id={1}&format=xml";
+        public const string MemberQueryTemplate = @"https://api.meetup.com/members?key={0}&sign=true&relation=self";
         public const string GroupsFileName = "groups.xml";
         public const string ConfigFileName = "config.xml";
         public const string CacheFolder = "cache";

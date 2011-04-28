@@ -101,8 +101,11 @@ namespace MPDL.UI.ViewModel {
                     break;
 
                 case ConfigWindowStatePropertyName:
-                    if (ConfigWindowState == WindowState.Closed)
+                    if (ConfigWindowState == WindowState.Closed) {
                         svc.SetConfig(Config);
+                        DownloadGroupsCommand.Execute(null);
+                    }
+
                     break;
             }
         }

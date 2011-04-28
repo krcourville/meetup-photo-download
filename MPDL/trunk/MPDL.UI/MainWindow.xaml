@@ -7,8 +7,8 @@
         xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
         xmlns:cmd="clr-namespace:GalaSoft.MvvmLight.Command;assembly=GalaSoft.MvvmLight.Extras"
         mc:Ignorable="d"
-        Height="768"
-        Width="1024"
+        d:Height="768"
+        d:Width="1024"
         Title="Meetup Photo Downloader"
         DataContext="{Binding Main, Source={StaticResource Locator}}" Icon="/MPDL.UI;component/Images/icon_64x64.png">
 
@@ -43,8 +43,8 @@
                 <Label Grid.Row="1" Content="API Key" VerticalAlignment="Center"/>
                 <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Path=Config.ApiKey, Mode=TwoWay}" VerticalAlignment="Center"/>
 
-                <Label Grid.Row="2" Content="MemberId" VerticalAlignment="Center"/>
-                <TextBox Grid.Row="2" Grid.Column="1"  Text="{Binding Path=Config.MemberId, Mode=TwoWay}" VerticalAlignment="Center"/>
+                <!--<Label Grid.Row="2" Content="MemberId" VerticalAlignment="Center"/>
+                <TextBox Grid.Row="2" Grid.Column="1"  Text="{Binding Path=Config.MemberId, Mode=TwoWay}" VerticalAlignment="Center"/>-->
 
                 <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button Padding="6 2" Command="{Binding Path=ToggleConfigWindowCommand}">OK</Button>
