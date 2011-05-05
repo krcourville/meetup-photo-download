@@ -308,7 +308,7 @@ namespace MPDL.Domain.Service {
             var albumItems = doc.SelectNodes(@"//items/item");
             foreach (XmlNode item in albumItems) {
                 result.Add(new MeetupPhoto {
-                    HighResUrl = item.SelectSingleNode("photo_link").InnerText,
+                    HighResUrl = item.SelectSingleNode("highres_link").InnerText,
                     ThumbUrl = item.SelectSingleNode("thumb_link").InnerText
                 });
             }
