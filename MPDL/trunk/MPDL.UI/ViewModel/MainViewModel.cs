@@ -86,14 +86,7 @@ namespace MPDL.UI.ViewModel {
             switch (e.PropertyName) {
                 case SelectedGroupPropertyName:
                     thumbs.Clear();
-                    IsBusy = true;
-                    svc.GetAlbumsAsync(false, l => {
-                        Albums.Clear();
-                        l.OrderByDescending(o => o.DateCreated)
-                            .ToList()
-                            .ForEach(a => Albums.Add(a));
-                        IsBusy = false;
-                    }, SelectedGroup.GroupId);
+                    DownloadAlbums(false);
                     break;
 
                 case SelectedAlbumPropertyName:
@@ -115,8 +108,8 @@ namespace MPDL.UI.ViewModel {
         private ObservableCollection<MeetupGroup> groups = new ObservableCollection<MeetupGroup>();
         public ObservableCollection<MeetupGroup> Groups { get { return groups; } }
 
-        private ObservableCollection<MeetupAlbum> albums = new ObservableCollection<MeetupAlbum>();
-        public ObservableCollection<MeetupAlbum> Albums { get { return albums; } }
+        private ObservableCollection<AlbumViewModel> albums = new ObservableCollection<AlbumViewModel>();
+        public ObservableCollection<AlbumViewModel> Albums { get { return albums; } }
 
         private ObservableCollection<PhotoViewModel> thumbs = new ObservableCollection<PhotoViewModel>();
         public ObservableCollection<PhotoViewModel> Thumbs { get { return thumbs; } }
@@ -131,6 +124,7 @@ namespace MPDL.UI.ViewModel {
         public RelayCommand DownloadThumbsCommand { get; private set; }
         public RelayCommand ToggleConfigWindowCommand { get; private set; }
         public RelayCommand DownloadHighResCommand { get; private set; }
+        public RelayCommand DownloadHighResAlbumsCommand { get; private set; }
         public RelayCommand OpenHighResFolderCommand { get; private set; }
 
         private void DefineCommands() {
@@ -152,7 +146,23 @@ namespace MPDL.UI.ViewModel {
                         item.IsSelected = false;
                 });
             }, () => {
-                return Thumbs.Where(w => w.IsSelected).Count() > 0;
+                return Thumbs.Where(w => w.IsSelected).Any();
+            });
+            //
+            DownloadHighResAlbumsCommand = new RelayCommand(() => {
+                var selected = Albums
+                    .Where(w => w.IsSelected);
+
+                IsBusy = true;
+                svc.GetPhotosAsync(false, toDownload => {
+                    svc.DownloadHighResAsync(toDownload, (m) => {
+                        IsBusy = false;
+                        foreach (var item in selected)
+                            item.IsSelected = false;
+                    });
+                }, selected.Select(a=>a.MeetupAlbum));
+            }, () => {
+                return Albums.Where(w => w.IsSelected).Any();
             });
             //
             SelectAllPhotosCommand = new RelayCommand(() => {
@@ -160,13 +170,13 @@ namespace MPDL.UI.ViewModel {
                     item.IsSelected = true;
                 }
             }, () => {
-                return Thumbs.Count > 0;
+                return Thumbs.Any();
             });
             DeselectAllPhotosCommand = new RelayCommand(() => {
                 foreach (var item in Thumbs) {
                     item.IsSelected = false;
                 }
-            }, () => Thumbs.Count > 0);
+            }, () => Thumbs.Any());
 
             //
             ToggleConfigWindowCommand = new RelayCommand(() => {
@@ -194,19 +204,14 @@ namespace MPDL.UI.ViewModel {
             });
             //
             DownloadAlbumsCommand = new RelayCommand(() => {
-                IsBusy = true;
-                svc.GetAlbumsAsync(true, l => {
-                    albums.Clear();
-                    l.OrderByDescending(o => o.DateCreated)
-                        .ToList()
-                        .ForEach(a => albums.Add(a));
-                    IsBusy = false;
-                }, SelectedGroup.GroupId);
+                DownloadAlbums(true);
             }
             , () => SelectedGroup != null);
             //
-            DownloadThumbsCommand = new RelayCommand(() => DownloadThumbnails(true), () => SelectedAlbum != null);
-
+            DownloadThumbsCommand = new RelayCommand(() => {
+                DownloadThumbnails(true);
+            }
+            , () => SelectedAlbum != null);
         }
 
         private void DownloadThumbnails(bool forceDownload) {
@@ -228,7 +233,26 @@ namespace MPDL.UI.ViewModel {
                 IsBusy = false;
                 SelectAllPhotosCommand.RaiseCanExecuteChanged();
                 DeselectAllPhotosCommand.RaiseCanExecuteChanged();
-            }, SelectedAlbum.AlbumId);
+            }, SelectedAlbum.MeetupAlbum);
+        }
+
+        private void DownloadAlbums(bool forceDownload)
+        {
+            IsBusy = true;
+            svc.GetAlbumsAsync(forceDownload, l =>
+            {
+                Albums.Clear();
+                l.OrderByDescending(o => o.DateCreated)
+                    .ToList()
+                    .ForEach(a =>
+                    {
+                        Albums.Add(new AlbumViewModel
+                        {
+                            MeetupAlbum = a
+                        });
+                    });
+                IsBusy = false;
+            }, SelectedGroup);
         }
 
         #endregion
@@ -334,7 +358,7 @@ namespace MPDL.UI.ViewModel {
         /// </summary>
         public const string SelectedAlbumPropertyName = "SelectedAlbum";
 
-        private MeetupAlbum selectedAlbum = null;
+        private AlbumViewModel selectedAlbum = null;
 
         /// <summary>
         /// Gets the SelectedAlbum property.
@@ -342,7 +366,7 @@ namespace MPDL.UI.ViewModel {
         /// Changes to that property's value raise the PropertyChanged event. 
         /// This property's value is broadcasted by the Messenger's default instance when it changes.
         /// </summary>
-        public MeetupAlbum SelectedAlbum {
+        public AlbumViewModel SelectedAlbum {
             get {
                 return selectedAlbum;
             }

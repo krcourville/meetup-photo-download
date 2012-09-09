@@ -7,8 +7,8 @@
         xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity"
         xmlns:cmd="clr-namespace:GalaSoft.MvvmLight.Command;assembly=GalaSoft.MvvmLight.Extras"
         mc:Ignorable="d"
-        d:Height="768"
-        d:Width="1024"
+        d:Width="1024" d:DesignWidth="786"
+        d:Height="768" d:DesignHeight="488"
         Title="Meetup Photo Downloader"
         DataContext="{Binding Main, Source={StaticResource Locator}}" Icon="/MPDL.UI;component/Images/icon_64x64.png">
 
@@ -82,8 +82,18 @@
                     <StackPanel Orientation="Horizontal" Grid.Row="2">
                         <Label>Albums</Label>
                         <Button Command="{Binding Path=DownloadAlbumsCommand}">Refresh</Button>
+                        <Button Command="{Binding Path=DownloadHighResAlbumsCommand}">Download Selected Albums</Button>
                     </StackPanel>
-                    <ListBox ItemsSource="{Binding Path=Albums}" SelectedItem="{Binding Path=SelectedAlbum}" Grid.Row="3" />
+                    <ListBox ItemsSource="{Binding Path=Albums}" SelectedItem="{Binding Path=SelectedAlbum}" Grid.Row="3">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal">
+                                    <CheckBox IsChecked="{Binding Path=IsSelected, Mode=TwoWay}"/>
+                                    <TextBlock Text="{Binding Path=MeetupAlbum}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
                 <Grid Grid.Column="1"  Grid.Row="1">
                     <Grid.RowDefinitions>
@@ -97,7 +107,7 @@
                         <Button Command="{Binding Path=DeselectAllPhotosCommand}">Select None</Button>
                         <Button Command="{Binding Path=DownloadHighResCommand}">Download Hi Res</Button>
                     </StackPanel>
-                    <ListBox ItemsSource="{Binding Path=Thumbs}" SelectionMode="Multiple"  Grid.Row="1" >
+                    <ListBox ItemsSource="{Binding Path=Thumbs}" SelectionMode="Multiple" Grid.Row="1" >
                         <ListBox.ItemContainerStyle>
                             <Style TargetType="{x:Type ListBoxItem}">
                                 <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}" />

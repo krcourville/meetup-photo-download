@@ -11,42 +11,45 @@ using System.ComponentModel;
 using System.Drawing;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System.Text.RegularExpressions;
 
 namespace MPDL.Domain.Service {
     public interface IMPDLService {
-        #region Operations (12)
-
-        bool ConfigIsSet();
+        #region Operations
 
         IEnumerable<MeetupPhoto> DownloadHighRes(IEnumerable<MeetupPhoto> selected);
-
         void DownloadHighResAsync(IEnumerable<MeetupPhoto> selected, Action<IEnumerable<MeetupPhoto>> onComplete);
 
-        IEnumerable<MeetupAlbum> GetAlbums(bool forceDownload, int groupId);
-
-        void GetAlbumsAsync(bool forceDownload, Action<IEnumerable<MeetupAlbum>> onComplete, int groupId);
+        IEnumerable<MeetupAlbum> GetAlbums(bool forceDownload, MeetupGroup group);
+        void GetAlbumsAsync(bool forceDownload, Action<IEnumerable<MeetupAlbum>> onComplete, MeetupGroup group);
 
         IEnumerable<MeetupGroup> GetAllGroups(bool forceDownload);
-
         void GetAllGroupsAsync(bool forceDownload, Action<IEnumerable<MeetupGroup>> onComplete);
 
-        MPDLConfig GetConfig();
+        IEnumerable<MeetupPhoto> GetPhotos(bool forceDownload, IEnumerable<MeetupAlbum> albums);
+        void GetPhotosAsync(bool forceDownload, Action<IEnumerable<MeetupPhoto>> onComplete, IEnumerable<MeetupAlbum> albums);
 
-        IEnumerable<MeetupPhoto> GetThumbnails(bool forceDownload, int albumId);
-
-        void GetThumbnailsAsync(bool forceDownload, Action<IEnumerable<MeetupPhoto>> onComplete, int albumId);
-
-        bool HasGroupsCached();
+        IEnumerable<MeetupPhoto> GetThumbnails(bool forceDownload, MeetupAlbum album);
+        void GetThumbnailsAsync(bool forceDownload, Action<IEnumerable<MeetupPhoto>> onComplete, MeetupAlbum album);
 
         void SetBusymessageCallback(Action<string> callback);
-
         void SetErrorMessageCallback(Action<Exception> callback);
-
-        void SetConfig(MPDLConfig mpdlConfig);
 
         #endregion Operations
 
+        #region Configuration
+
+        bool ConfigIsSet();
+
+        void SetConfig(MPDLConfig mpdlConfig);
+
+        MPDLConfig GetConfig();
+
+        bool HasGroupsCached();
+
         string GetHighResDownloadFolder();
+
+        #endregion
     }
 
 
@@ -56,6 +59,7 @@ namespace MPDL.Domain.Service {
         private Action<string> busyMessageCallback;
         private MPDLConfig config;
         private readonly string groupsPath;
+        private Regex pathRegex;
         private readonly string highresDownloadPath;
         private bool isConfigSet;
         private Action<Exception> errorMessageCallback;
@@ -88,6 +92,7 @@ namespace MPDL.Domain.Service {
                     }
                 }
             }
+            pathRegex = new Regex(Path.GetInvalidFileNameChars().Aggregate("[", (regex, chr) => regex += @"\u" + ((int)chr).ToString("X4"), regex => regex + "]"));
         }
 
         #endregion Constructors
@@ -106,7 +111,8 @@ namespace MPDL.Domain.Service {
             foreach (var item in selected) {
                 itemCount++;
                 BusyMessage("Downloading {0} of {1}: {2}", itemCount, totalCount, item.HighResUrl);
-                item.HighResUrl = DownloadImage(item.HighResUrl, highresDownloadPath);
+                string albumPath = pathRegex.Replace(item.Album.ToString(), ""); // remove invalid characters
+                item.HighResUrl = DownloadImage(item.HighResUrl, Path.Combine(highresDownloadPath, albumPath));
             }
             return selected; // TODO: Maybe.. do more with this return value
         }
@@ -117,16 +123,16 @@ namespace MPDL.Domain.Service {
             DoWork(() => DownloadHighRes(selected), () => onComplete(result));
         }
 
-        public IEnumerable<MeetupAlbum> GetAlbums(bool forceDownload, int groupId) {
+        public IEnumerable<MeetupAlbum> GetAlbums(bool forceDownload, MeetupGroup group) {
             CheckConfig();
             var result = new List<MeetupAlbum>();
-            var url = string.Format(Constants.AlbumQueryTemplate, config.ApiKey, groupId);
+            var url = string.Format(Constants.AlbumQueryTemplate, config.ApiKey, group.GroupId);
             var doc = GetXml(
                 forceDownload,
                 url,
                 Path.Combine(
                     Constants.CacheFolder,
-                    string.Format("albums-{0}.xml", groupId)
+                    string.Format("albums-{0}.xml", group.GroupId)
                     )
                 );
             var albumItems = doc.SelectNodes(@"//items/item");
@@ -141,9 +147,9 @@ namespace MPDL.Domain.Service {
             return result;
         }
 
-        public void GetAlbumsAsync(bool forceDownload, Action<IEnumerable<MeetupAlbum>> onComplete, int groupId) {
+        public void GetAlbumsAsync(bool forceDownload, Action<IEnumerable<MeetupAlbum>> onComplete, MeetupGroup group) {
             IEnumerable<MeetupAlbum> result = null;
-            DoWork(() => { result = new List<MeetupAlbum>(GetAlbums(forceDownload, groupId)); },
+            DoWork(() => { result = new List<MeetupAlbum>(GetAlbums(forceDownload, group)); },
                    () => onComplete(result));
         }
 
@@ -173,13 +179,28 @@ namespace MPDL.Domain.Service {
             return this.config ?? new MPDLConfig();
         }
 
-        public IEnumerable<MeetupPhoto> GetThumbnails(bool forceDownload, int albumId) {
+        public IEnumerable<MeetupPhoto> GetPhotos(bool forceDownload, IEnumerable<MeetupAlbum> albums) {
+            var photos = new List<MeetupPhoto>();
+            foreach (var album in albums) {
+                BusyMessage("Getting album details for {0}", album.ToString());
+                photos.AddRange(GetPhotoUrls(forceDownload, album));
+            }
+            return photos;
+        }
+
+        public void GetPhotosAsync(bool forceDownload, Action<IEnumerable<MeetupPhoto>> onComplete, IEnumerable<MeetupAlbum> albums) {
+            IEnumerable<MeetupPhoto> result = null;
+            DoWork(() => { result = new List<MeetupPhoto>(GetPhotos(forceDownload, albums)); },
+                   () => onComplete(result));
+        }
+
+        public IEnumerable<MeetupPhoto> GetThumbnails(bool forceDownload, MeetupAlbum album) {
             // look for cached folder for album id
             // cache/thumbs-{albumId}
             var cachePath = Path.Combine(Constants.CacheFolder,
-                                         string.Format("thumbs-{0}", albumId));
+                                         string.Format("thumbs-{0}", album.AlbumId));
 
-            var photos = GetPhotoUrls(forceDownload, albumId);
+            var photos = GetPhotoUrls(forceDownload, album);
 
             if (!Directory.Exists(cachePath) || forceDownload) {
                 if (!Directory.Exists(cachePath)) {
@@ -196,9 +217,9 @@ namespace MPDL.Domain.Service {
             return photos;
         }
 
-        public void GetThumbnailsAsync(bool forceDownload, Action<IEnumerable<MeetupPhoto>> onComplete, int albumId) {
+        public void GetThumbnailsAsync(bool forceDownload, Action<IEnumerable<MeetupPhoto>> onComplete, MeetupAlbum album) {
             IEnumerable<MeetupPhoto> result = null;
-            DoWork(() => { result = new List<MeetupPhoto>(GetThumbnails(forceDownload, albumId)); },
+            DoWork(() => { result = new List<MeetupPhoto>(GetThumbnails(forceDownload, album)); },
                    () => onComplete(result));
         }
 
@@ -272,6 +293,8 @@ namespace MPDL.Domain.Service {
             var bitmap = new Bitmap(stream);
             stream.Flush();
 
+            Directory.CreateDirectory(outputFolder);
+
             var outputPath = Path.Combine(outputFolder, Path.GetFileName(url));
             if (File.Exists(outputPath)) {
                 File.Delete(outputPath);
@@ -295,19 +318,19 @@ namespace MPDL.Domain.Service {
             worker.RunWorkerAsync();
         }
 
-        private IEnumerable<MeetupPhoto> GetPhotoUrls(bool forceDownload, int albumId) {
+        private IEnumerable<MeetupPhoto> GetPhotoUrls(bool forceDownload, MeetupAlbum album) {
             CheckConfig();
             var result = new List<MeetupPhoto>();
-            var url = string.Format(Constants.PhotoQueryTemplate, config.ApiKey, albumId);
+            var url = string.Format(Constants.PhotoQueryTemplate, config.ApiKey, album.AlbumId);
             var doc = GetXml(
                 forceDownload,
                 url,
                 Path.Combine(Constants.CacheFolder,
-                             string.Format("photos-{0}.xml", albumId))
+                             string.Format("photos-{0}.xml", album.AlbumId))
                 );
             var albumItems = doc.SelectNodes(@"//items/item");
             foreach (XmlNode item in albumItems) {
-                result.Add(new MeetupPhoto {
+                result.Add(new MeetupPhoto(album) {
                     HighResUrl = item.SelectSingleNode("highres_link").InnerText,
                     ThumbUrl = item.SelectSingleNode("thumb_link").InnerText
                 });
