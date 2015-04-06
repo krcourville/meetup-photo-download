@@ -1,6 +1,6 @@
 ﻿Meetup Photo Download
 
-Refer to http://code.google.com/p/meetup-photo-download/ for installation and usage information.
+Refer to https://github.com/krcourville/meetup-photo-download for installation and usage information.
 
 Updates 
 5/5/2011 - 2.0.0.4

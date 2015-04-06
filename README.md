@@ -23,13 +23,13 @@ Meetup Photo Download (MPDL) was created to assist Meetup.com members in bulk do
   * Windows 7 32-bit
 
 ## Installation ##
-  * Download zipped archive from downloads area of this site.
-  * Unblock archive (Right click on archive in Windows Explorer, select **Properties** | **Unblock** | **OK**)
+  * Download zipped __Release__ archive.
+  * If needed, unblock archive (Right click on archive in Windows Explorer, select **Properties** | **Unblock** | **OK**)
   * Extract archive.
 
 ## Usage ##
   * Run MPDL.UI.exe
-  * Provide requested API Key, while heading the security warning (see below for detail).
+  * Provide requested API Key, while heeding the security warning (see below for detail).
   * Note: Nothing is downloaded from Meetup.com until requested by a click.
   * Click **Refresh** next to _Groups_ to download your group information.
   * Select Group and Album to download from (use Refresh buttons if displayed information is stale).
