@@ -5,6 +5,14 @@
 ## Description ##
 Meetup Photo Download (MPDL) was created to assist Meetup.com members in bulk download of photo albums.
 
+## Found this app useful? A little donation will inspire future updates!##
+<script async="async" src="https://www.paypalobjects.com/js/external/paypal-button.min.js?merchant=krcourville@gmail.com" 
+    data-button="donate" 
+    data-name="Meetup Photo Downloader Donation" 
+    data-amount="10" 
+    data-currency="USD"
+></script>
+
 ## Features ##
   * Bulk selection, preview, and download of High Res photos.
   * Local caching of group, album, and thumbnail information with the option to refresh from meetup.com at any time.
