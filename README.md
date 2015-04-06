@@ -1,6 +1,6 @@
 # Meetup Photo Downloader (MPDL) #
 
-![http://meetup-photo-download.googlecode.com/files/mpdl-screenshot.jpg](http://meetup-photo-download.googlecode.com/files/mpdl-screenshot.jpg)
+![Screenshot](screenshot01.jpg)
 
 ## Description ##
 Meetup Photo Download (MPDL) was created to assist Meetup.com members in bulk download of photo albums.
