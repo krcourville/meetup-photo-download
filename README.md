@@ -8,9 +8,6 @@ The functionality of MPDL has been recreated as a commercial application.
 
 [More Information](http://www.coderken.com/meetup/photo/downloader/mpdl/easy/download/2018/03/09/easy-photo-download-launched.html#)
 
-
-![Screenshot](screenshot01.jpg)
-
 ```diff
 - WARNING: MPDL has unofficially not been supported for some time. 
 - Officially, MPDL is no longer supported.
