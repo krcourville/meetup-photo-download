@@ -69,8 +69,7 @@ Note: Do not share this information with others!
 
 ## Support ##
 
-- WARNING: MPDL has unofficially not been supported for some time. 
-- Officially, MPDL is no longer supported.
-- 
-- However, the functionality of MPDL IS supported in 
-- Easy Photo Downloader
+WARNING: MPDL has unofficially not been supported for some time. 
+Officially, MPDL is no longer supported.
+ 
+However, the functionality of MPDL IS supported in [Easy Photo Downloader](https://easydownload.photos/)
