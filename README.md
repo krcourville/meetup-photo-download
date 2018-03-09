@@ -12,7 +12,7 @@ The functionality of MPDL has been recreated as a commercial application.
 - WARNING: MPDL has unofficially not been supported for some time. 
 - Officially, MPDL is no longer supported.
 - 
-- Hower, the functionality of MPDL IS supported in 
+- However, the functionality of MPDL IS supported in 
 - Easy Photo Downloader
 ```
 
@@ -68,4 +68,9 @@ This information is subject to change, since Meetup.com is ever-evolving.
 Note: Do not share this information with others!
 
 ## Support ##
-Please report any problems using the _Issues_ link above.
+
+- WARNING: MPDL has unofficially not been supported for some time. 
+- Officially, MPDL is no longer supported.
+- 
+- However, the functionality of MPDL IS supported in 
+- Easy Photo Downloader
